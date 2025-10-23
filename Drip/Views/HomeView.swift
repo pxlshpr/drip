@@ -24,10 +24,10 @@ struct HomeView: View {
     private var financeStore: FinanceStore {
         // If we have multiple stores due to CloudKit sync conflicts, merge them
         if stores.count > 1 {
-            // Keep the first store and delete the rest
-            let primaryStore = stores[0]
-            for i in 1..<stores.count {
-                modelContext.delete(stores[i])
+            // Keep the store with the most data (largest stateData)
+            let primaryStore = stores.max(by: { $0.stateData.count < $1.stateData.count }) ?? stores[0]
+            for store in stores where store !== primaryStore {
+                modelContext.delete(store)
             }
             try? modelContext.save()
             return primaryStore

@@ -83,10 +83,16 @@ struct HomeView: View {
                         }
 
                         HStack(spacing: 12) {
+                            ActionButton(icon: "wrench.and.screwdriver", title: "Corrections", color: .yellow) {
+                                showCorrections = true
+                            }
+
                             ActionButton(icon: "list.bullet.clipboard", title: "Logs", color: .orange) {
                                 showLogs = true
                             }
+                        }
 
+                        HStack(spacing: 12) {
                             ActionButton(icon: "gearshape.fill", title: "Settings", color: .gray) {
                                 showSettings = true
                             }

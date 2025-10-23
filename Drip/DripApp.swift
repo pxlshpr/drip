@@ -14,7 +14,11 @@ struct DripApp: App {
         let schema = Schema([
             FinanceStore.self,
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let modelConfiguration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: false,
+            cloudKitDatabase: .private("iCloud.com.ahmdrghb.Drip")
+        )
 
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])

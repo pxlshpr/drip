@@ -10,7 +10,7 @@ import SwiftData
 
 @Model
 final class FinanceStore {
-    var stateData: Data
+    var stateData: Data = Data()
 
     init(stateData: Data = Data()) {
         self.stateData = stateData

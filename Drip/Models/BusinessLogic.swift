@@ -172,17 +172,49 @@ struct FinancialState: Codable, Equatable {
     }
 
     static var baselineSeed: FinancialState {
-        FinancialState(
-            bank: 382.19,
-            cashReserve: 3000.00,
+        // Create a date for Oct 20, 2025 (Monday)
+        let calendar = Calendar.current
+        var components = DateComponents(year: 2025, month: 10, day: 20)
+        let oct20 = calendar.date(from: components)!
+
+        // Create Oct 14 for Claude Max payment date
+        components.day = 14
+        let oct14 = calendar.date(from: components)!
+
+        // Create monthly earmarks
+        let spotify = MonthlyEarmark(name: "Spotify", amount: 41.83, notes: "", sourceTag: "", isActive: true, isPaid: false)
+        let chatgpt = MonthlyEarmark(name: "ChatGPT", amount: 308.25, notes: "", sourceTag: "", isActive: true, isPaid: false)
+        let misc = MonthlyEarmark(name: "Misc", amount: 80.28, notes: "", sourceTag: "", isActive: true, isPaid: false)
+        let claudeMax = MonthlyEarmark(name: "Claude Max", amount: 1460.74, notes: "Paid on Oct 14", sourceTag: "", isActive: true, isPaid: true)
+
+        // Create a daily log entry for Oct 20 showing full allowance spent
+        let dailyLogOct20 = DailyLogEntry(
+            date: oct20,
+            items: [
+                DailyLogItem(description: "Daily spending", amount: 88.41, source: .bank)
+            ],
+            allowanceDiff: 0.00
+        )
+
+        // Create cash reserve log for the 3500 deposit
+        let cashReserveLog = CashReserveLogEntry(
+            date: oct20,
+            description: "Cash reserve deposit",
+            amount: 3500.00,
+            type: .deposit
+        )
+
+        return FinancialState(
+            bank: 2543.28,
+            cashReserve: 3500.00,
             dailyAllowance: 88.41,
-            setAsideAllowances: 0.00,
-            setAsideMonthly: 0.00,
-            monthlyEarmarks: [],
+            setAsideAllowances: 972.51,  // 12 days remaining (Oct 20-31 inclusive) - includes today
+            setAsideMonthly: 430.36,  // Spotify (41.83) + ChatGPT (308.25) + Claude Max (80.28) = 430.36 (Claude Max partially allocated before payment)
+            monthlyEarmarks: [spotify, chatgpt, misc, claudeMax],
             customBuckets: [],
-            mainSavings: 3382.19,
-            dailyLogs: [],
-            cashReserveLogs: [],
+            mainSavings: 4640.41,  // Buffer: 6043.28 - 972.51 - 430.36 = 4640.41
+            dailyLogs: [dailyLogOct20],
+            cashReserveLogs: [cashReserveLog],
             adjustmentLogs: []
         )
     }

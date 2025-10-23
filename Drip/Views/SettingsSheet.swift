@@ -38,9 +38,20 @@ struct SettingsSheet: View {
                         loadBaselineSeed()
                     }
 
-                    Text("Bank: $382.19, Cash: $3000, Allowance: $88.41, Main Savings: $3382.19")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("As of Mon, Oct 20, 2025:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Bank: $2,543.28, Cash: $3,500")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Allowance: $88.41, Main Savings: $4,640.41")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("Monthly: Spotify, ChatGPT, Misc (Claude Max paid)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section("About") {

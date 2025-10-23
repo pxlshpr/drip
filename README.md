@@ -121,11 +121,18 @@ xcodebuild test -project Drip.xcodeproj -scheme Drip -destination 'platform=iOS 
 ```
 
 ### Load Seed Data
-The app includes baseline seed data for testing:
-- Bank: $382.19
-- Cash Reserve: $3,000.00
-- Daily Allowance: $88.41
-- Main Savings: $3,382.19
+The app includes baseline seed data for testing (as of Mon, Oct 20, 2025):
+- **Bank**: $2,543.28
+- **Cash Reserve**: $3,500.00 (includes $3,500 deposit)
+- **Daily Allowance**: $88.41 (fully used today)
+- **Allowances Bucket**: $972.51 (12 days remaining Oct 20-31)
+- **Monthly Set-Asides**: $430.36
+  - Spotify: $41.83 (unpaid)
+  - ChatGPT: $308.25 (unpaid)
+  - Misc: $80.28 (unpaid)
+  - Claude Max: ✅ Paid ($1,460.74 on Oct 14)
+- **Main Savings**: $4,640.41 (≈ $300.94 USD)
+- **Total Funds**: $6,043.28
 
 To load: Open Settings → "Load Baseline Seed Data"
 

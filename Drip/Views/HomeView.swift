@@ -22,11 +22,21 @@ struct HomeView: View {
     @State private var showUSDSavings = false
 
     private var financeStore: FinanceStore {
-        if let store = stores.first {
+        // If we have multiple stores due to CloudKit sync conflicts, merge them
+        if stores.count > 1 {
+            // Keep the first store and delete the rest
+            let primaryStore = stores[0]
+            for i in 1..<stores.count {
+                modelContext.delete(stores[i])
+            }
+            try? modelContext.save()
+            return primaryStore
+        } else if let store = stores.first {
             return store
         } else {
             let newStore = FinanceStore()
             modelContext.insert(newStore)
+            try? modelContext.save()
             return newStore
         }
     }

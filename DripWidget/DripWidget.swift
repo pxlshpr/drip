@@ -10,18 +10,19 @@ import SwiftUI
 
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), savingsBuffer: 1234.56)
+        SimpleEntry(date: Date(), dailyAllowance: 88.41, savingsBuffer: 1234.56)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = SimpleEntry(date: Date(), savingsBuffer: getSavingsBuffer())
+        let (dailyAllowance, savingsBuffer) = getFinancialData()
+        let entry = SimpleEntry(date: Date(), dailyAllowance: dailyAllowance, savingsBuffer: savingsBuffer)
         completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         let currentDate = Date()
-        let savingsBuffer = getSavingsBuffer()
-        let entry = SimpleEntry(date: currentDate, savingsBuffer: savingsBuffer)
+        let (dailyAllowance, savingsBuffer) = getFinancialData()
+        let entry = SimpleEntry(date: currentDate, dailyAllowance: dailyAllowance, savingsBuffer: savingsBuffer)
 
         // Update every 15 minutes
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: currentDate)!
@@ -29,29 +30,33 @@ struct Provider: TimelineProvider {
         completion(timeline)
     }
 
-    private func getSavingsBuffer() -> Decimal {
+    private func getFinancialData() -> (dailyAllowance: Decimal, savingsBuffer: Decimal) {
         guard let sharedDefaults = UserDefaults(suiteName: "group.com.ahmdrghb.Drip") else {
             print("❌ Widget: Failed to access App Group")
-            return 0
+            return (0, 0)
         }
 
+        print("🔍 Widget: Checking UserDefaults for key 'financialState'")
         guard let savedData = sharedDefaults.data(forKey: "financialState") else {
             print("❌ Widget: No data found in App Group")
-            return 0
+            print("🔍 Widget: All keys in UserDefaults: \(sharedDefaults.dictionaryRepresentation().keys)")
+            return (0, 0)
         }
 
+        print("✅ Widget: Found data, size: \(savedData.count) bytes")
         guard let state = try? JSONDecoder().decode(FinancialState.self, from: savedData) else {
             print("❌ Widget: Failed to decode financial state")
-            return 0
+            return (0, 0)
         }
 
-        print("✅ Widget: Loaded savings buffer: \(state.mainSavings)")
-        return state.mainSavings
+        print("✅ Widget: Loaded data - dailyAllowance: \(state.setAsideAllowances), mainSavings: \(state.mainSavings)")
+        return (state.setAsideAllowances, state.mainSavings)
     }
 }
 
 struct SimpleEntry: TimelineEntry {
     let date: Date
+    let dailyAllowance: Decimal
     let savingsBuffer: Decimal
 }
 
@@ -59,27 +64,37 @@ struct DripWidgetEntryView : View {
     var entry: Provider.Entry
 
     var body: some View {
-        VStack(spacing: 6) {
-            Text("🛟")
-                .font(.system(size: 28))
-
-            Text("Buffer")
-                .font(.system(size: 10, weight: .medium))
-                .textCase(.uppercase)
-
-            if entry.savingsBuffer == 0 {
-                Text("Open App")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(.orange)
-            } else {
-                Text(formatCurrency(entry.savingsBuffer))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(.green)
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
+        ZStack {
+            VStack {
+                HStack {
+                    Text("Dailies Bucket")
+                        .font(.system(size: 11, weight: .medium))
+                        .textCase(.uppercase)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                Spacer()
+                HStack {
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(formatCurrency(entry.dailyAllowance))
+                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            Text("Buffer:")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Text(formatCurrency(entry.savingsBuffer))
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundColor(.green)
+                        }
+                    }
+                }
             }
+            .padding(12)
         }
-        .padding(8)
     }
 
     private func formatCurrency(_ amount: Decimal) -> String {
@@ -97,6 +112,7 @@ struct DripWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             DripWidgetEntryView(entry: entry)
+                .containerBackground(.clear, for: .widget)
         }
         .configurationDisplayName("Savings Buffer")
         .description("Shows your current savings buffer amount.")
@@ -107,6 +123,6 @@ struct DripWidget: Widget {
 #Preview(as: .systemSmall) {
     DripWidget()
 } timeline: {
-    SimpleEntry(date: .now, savingsBuffer: 1234.56)
-    SimpleEntry(date: .now, savingsBuffer: 5678.90)
+    SimpleEntry(date: .now, dailyAllowance: 88.41, savingsBuffer: 1234.56)
+    SimpleEntry(date: .now, dailyAllowance: 265.23, savingsBuffer: 5678.90)
 }

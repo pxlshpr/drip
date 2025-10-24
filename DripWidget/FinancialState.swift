@@ -20,9 +20,10 @@ struct MonthlyEarmark: Codable, Equatable, Identifiable {
     var id: UUID
     var name: String
     var amount: Decimal
+    var notes: String
+    var sourceTag: String
     var isActive: Bool
     var isPaid: Bool
-    var paidDate: Date?
 }
 
 struct CustomBucket: Codable, Equatable, Identifiable {
@@ -31,10 +32,18 @@ struct CustomBucket: Codable, Equatable, Identifiable {
     var amount: Decimal
 }
 
+struct DailyLogItem: Codable, Equatable, Identifiable {
+    var id: UUID
+    var description: String
+    var amount: Decimal
+    var source: String
+}
+
 struct DailyLogEntry: Codable, Equatable, Identifiable {
     var id: UUID
     var date: Date
-    var allowanceUsed: Decimal
+    var items: [DailyLogItem]
+    var allowanceDiff: Decimal
 }
 
 struct CashReserveLogEntry: Codable, Equatable, Identifiable {
@@ -42,6 +51,7 @@ struct CashReserveLogEntry: Codable, Equatable, Identifiable {
     var date: Date
     var description: String
     var amount: Decimal
+    var type: String
 }
 
 struct AdjustmentLogEntry: Codable, Equatable, Identifiable {
@@ -49,4 +59,6 @@ struct AdjustmentLogEntry: Codable, Equatable, Identifiable {
     var date: Date
     var description: String
     var amount: Decimal
+    var fromAccount: String
+    var toAccount: String
 }

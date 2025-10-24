@@ -135,6 +135,10 @@ struct HomeView: View {
             .sheet(isPresented: $showSettings) {
                 SettingsSheet(financeStore: financeStore)
             }
+            .onAppear {
+                // Sync current state to widget on app launch
+                WidgetDataSync.syncToWidget(state: financeStore.state)
+            }
         }
     }
 }

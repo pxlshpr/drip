@@ -49,8 +49,8 @@ struct Provider: TimelineProvider {
             return (0, 0)
         }
 
-        print("✅ Widget: Loaded data - dailyAllowance: \(state.setAsideAllowances), mainSavings: \(state.mainSavings)")
-        return (state.setAsideAllowances, state.mainSavings)
+        print("✅ Widget: Loaded data - dailyAllowance: \(state.dailyAllowance), mainSavings: \(state.mainSavings)")
+        return (state.dailyAllowance, state.mainSavings)
     }
 }
 
@@ -83,7 +83,7 @@ struct DripWidgetEntryView : View {
                             .minimumScaleFactor(0.5)
                             .lineLimit(1)
                         HStack(spacing: 4) {
-                            Text("Buffer:")
+                            Image(systemName: "banknote")
                                 .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(.secondary)
                             Text(formatCurrency(entry.savingsBuffer))

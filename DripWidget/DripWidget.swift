@@ -49,8 +49,21 @@ struct Provider: TimelineProvider {
             return (0, 0)
         }
 
-        print("✅ Widget: Loaded data - dailyAllowance: \(state.dailyAllowance), mainSavings: \(state.mainSavings)")
-        return (state.dailyAllowance, state.mainSavings)
+        // Calculate remaining daily allowance (subtract today's bank expenses)
+        let remainingAllowance = calculateRemainingDailyAllowance(state: state)
+
+        print("✅ Widget: Loaded data - remainingAllowance: \(remainingAllowance), mainSavings: \(state.mainSavings)")
+        return (remainingAllowance, state.mainSavings)
+    }
+
+    private func calculateRemainingDailyAllowance(state: FinancialState, date: Date = Date()) -> Decimal {
+        let calendar = Calendar.current
+        guard let todayLog = state.dailyLogs.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) else {
+            return state.dailyAllowance
+        }
+
+        let spentToday = todayLog.items.filter { $0.source == "bank" }.reduce(Decimal(0)) { $0 + $1.amount }
+        return state.dailyAllowance - spentToday
     }
 }
 

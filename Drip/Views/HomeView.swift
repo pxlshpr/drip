@@ -136,8 +136,10 @@ struct HomeView: View {
                 SettingsSheet(financeStore: financeStore)
             }
             .onAppear {
-                // Sync current state to widget on app launch
-                WidgetDataSync.syncToWidget(state: financeStore.state)
+                // Recalculate buckets based on current date (e.g., remaining days in month)
+                var updatedState = financeStore.state
+                FinanceEngine.recalculateBuckets(state: &updatedState, referenceDate: Date())
+                financeStore.state = updatedState
             }
         }
     }

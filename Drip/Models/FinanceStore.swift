@@ -26,6 +26,9 @@ final class FinanceStore {
         set {
             guard let encoded = try? JSONEncoder().encode(newValue) else { return }
             stateData = encoded
+
+            // Sync to widget whenever state changes
+            WidgetDataSync.syncToWidget(state: newValue)
         }
     }
 }

@@ -518,6 +518,16 @@ class FinanceEngine {
         state.dailyLogs[logIndex].allowanceDiff = diff
     }
 
+    /// Recalculates allowance diff for all daily logs
+    static func recalculateAllAllowanceDiffs(state: inout FinancialState) {
+        for i in state.dailyLogs.indices {
+            let log = state.dailyLogs[i]
+            let spentFromBank = log.items.filter { $0.source == .bank }.reduce(Decimal(0)) { $0 + $1.amount }
+            let diff = state.dailyAllowance - spentFromBank
+            state.dailyLogs[i].allowanceDiff = diff
+        }
+    }
+
     // MARK: - Delete Expense
 
     static func deleteExpense(

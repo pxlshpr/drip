@@ -43,6 +43,12 @@ struct LogsSheet: View {
                     }
                 }
             }
+            .onAppear {
+                // Recalculate all allowance diffs when logs view appears
+                var state = financeStore.state
+                FinanceEngine.recalculateAllAllowanceDiffs(state: &state)
+                financeStore.state = state
+            }
         }
     }
 }

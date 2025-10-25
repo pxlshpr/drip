@@ -52,12 +52,26 @@ struct DailyLogItem: Codable, Identifiable, Equatable {
     var description: String
     var amount: Decimal
     var source: ExpenseSource
+    var countsTowardAllowance: Bool
 
-    init(id: UUID = UUID(), description: String, amount: Decimal, source: ExpenseSource) {
+    init(id: UUID = UUID(), description: String, amount: Decimal, source: ExpenseSource, countsTowardAllowance: Bool? = nil) {
         self.id = id
         self.description = description
         self.amount = amount
         self.source = source
+        // Default: Bank expenses count toward allowance, Cash/SavingsConcept don't
+        self.countsTowardAllowance = countsTowardAllowance ?? (source == .bank)
+    }
+
+    // Custom decoding to handle backward compatibility
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        description = try container.decode(String.self, forKey: .description)
+        amount = try container.decode(Decimal.self, forKey: .amount)
+        source = try container.decode(ExpenseSource.self, forKey: .source)
+        // If countsTowardAllowance is missing (old data), default based on source
+        countsTowardAllowance = try container.decodeIfPresent(Bool.self, forKey: .countsTowardAllowance) ?? (source == .bank)
     }
 }
 
@@ -259,7 +273,8 @@ class FinanceEngine {
         description: String,
         date: Date = Date(),
         source: ExpenseSource = .bank,
-        fromSavingsConcept: Bool = false
+        fromSavingsConcept: Bool = false,
+        countsTowardAllowance: Bool? = nil
     ) {
         // Deduct from account
         switch source {
@@ -278,11 +293,11 @@ class FinanceEngine {
 
         if let existingLogIndex = state.dailyLogs.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: startOfDay) }) {
             var log = state.dailyLogs[existingLogIndex]
-            log.items.append(DailyLogItem(description: description, amount: amount, source: source))
+            log.items.append(DailyLogItem(description: description, amount: amount, source: source, countsTowardAllowance: countsTowardAllowance))
             state.dailyLogs[existingLogIndex] = log
         } else {
             var newLog = DailyLogEntry(date: startOfDay)
-            newLog.items.append(DailyLogItem(description: description, amount: amount, source: source))
+            newLog.items.append(DailyLogItem(description: description, amount: amount, source: source, countsTowardAllowance: countsTowardAllowance))
             state.dailyLogs.append(newLog)
         }
 
@@ -498,7 +513,7 @@ class FinanceEngine {
             return state.dailyAllowance
         }
 
-        let spentToday = todayLog.items.filter { $0.source == .bank }.reduce(Decimal(0)) { $0 + $1.amount }
+        let spentToday = todayLog.items.filter { $0.countsTowardAllowance }.reduce(Decimal(0)) { $0 + $1.amount }
         return state.dailyAllowance - spentToday
     }
 
@@ -513,8 +528,8 @@ class FinanceEngine {
         }
 
         let log = state.dailyLogs[logIndex]
-        let spentFromBank = log.items.filter { $0.source == .bank }.reduce(Decimal(0)) { $0 + $1.amount }
-        let diff = state.dailyAllowance - spentFromBank
+        let spentTowardAllowance = log.items.filter { $0.countsTowardAllowance }.reduce(Decimal(0)) { $0 + $1.amount }
+        let diff = state.dailyAllowance - spentTowardAllowance
         state.dailyLogs[logIndex].allowanceDiff = diff
     }
 
@@ -522,8 +537,8 @@ class FinanceEngine {
     static func recalculateAllAllowanceDiffs(state: inout FinancialState) {
         for i in state.dailyLogs.indices {
             let log = state.dailyLogs[i]
-            let spentFromBank = log.items.filter { $0.source == .bank }.reduce(Decimal(0)) { $0 + $1.amount }
-            let diff = state.dailyAllowance - spentFromBank
+            let spentTowardAllowance = log.items.filter { $0.countsTowardAllowance }.reduce(Decimal(0)) { $0 + $1.amount }
+            let diff = state.dailyAllowance - spentTowardAllowance
             state.dailyLogs[i].allowanceDiff = diff
         }
     }
@@ -578,7 +593,8 @@ class FinanceEngine {
         itemId: UUID,
         newAmount: Decimal,
         newDescription: String,
-        newSource: ExpenseSource
+        newSource: ExpenseSource,
+        newCountsTowardAllowance: Bool
     ) {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: logDate)
@@ -614,6 +630,7 @@ class FinanceEngine {
         state.dailyLogs[logIndex].items[itemIndex].amount = newAmount
         state.dailyLogs[logIndex].items[itemIndex].description = newDescription
         state.dailyLogs[logIndex].items[itemIndex].source = newSource
+        state.dailyLogs[logIndex].items[itemIndex].countsTowardAllowance = newCountsTowardAllowance
 
         // Recalculate allowance diff for this day
         recalculateAllowanceDiff(state: &state, forDate: logDate)

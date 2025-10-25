@@ -80,9 +80,19 @@ struct DailyLogView: View {
                                 VStack(alignment: .leading) {
                                     Text(item.description)
                                         .font(.headline)
-                                    Text(item.source.rawValue)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                    HStack(spacing: 4) {
+                                        Text(item.source.rawValue)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        if item.countsTowardAllowance {
+                                            Text("•")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            Text("Counts toward allowance")
+                                                .font(.caption)
+                                                .foregroundStyle(.blue)
+                                        }
+                                    }
                                 }
 
                                 Spacer()
@@ -310,6 +320,7 @@ struct EditDailyLogItemSheet: View {
     @State private var description: String
     @State private var amount: String
     @State private var source: ExpenseSource
+    @State private var countsTowardAllowance: Bool
 
     init(financeStore: FinanceStore, log: DailyLogEntry, item: DailyLogItem) {
         self.financeStore = financeStore
@@ -318,6 +329,7 @@ struct EditDailyLogItemSheet: View {
         _description = State(initialValue: item.description)
         _amount = State(initialValue: item.amount.asString())
         _source = State(initialValue: item.source)
+        _countsTowardAllowance = State(initialValue: item.countsTowardAllowance)
     }
 
     var body: some View {
@@ -332,6 +344,7 @@ struct EditDailyLogItemSheet: View {
                         Text("Cash").tag(ExpenseSource.cash)
                         Text("Savings Concept").tag(ExpenseSource.savingsConcept)
                     }
+                    Toggle("Counts toward daily allowance", isOn: $countsTowardAllowance)
                 }
 
                 Section {
@@ -361,7 +374,8 @@ struct EditDailyLogItemSheet: View {
                                 itemId: item.id,
                                 newAmount: amountDecimal,
                                 newDescription: description,
-                                newSource: source
+                                newSource: source,
+                                newCountsTowardAllowance: countsTowardAllowance
                             )
                             financeStore.state = state
                         }

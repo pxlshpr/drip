@@ -16,6 +16,7 @@ struct AddExpenseSheet: View {
     @State private var date: Date = Date()
     @State private var source: ExpenseSource = .bank
     @State private var fromSavingsConcept: Bool = false
+    @State private var countsTowardAllowance: Bool = true
 
     var parsedAmount: Decimal {
         Decimal(string: amount) ?? 0
@@ -30,7 +31,8 @@ struct AddExpenseSheet: View {
                 description: description.isEmpty ? "Expense" : description,
                 date: date,
                 source: source,
-                fromSavingsConcept: fromSavingsConcept
+                fromSavingsConcept: fromSavingsConcept,
+                countsTowardAllowance: countsTowardAllowance
             )
         }
         return state
@@ -52,6 +54,12 @@ struct AddExpenseSheet: View {
                         Text("💵 Cash").tag(ExpenseSource.cash)
                     }
                     .pickerStyle(.segmented)
+                    .onChange(of: source) { _, newValue in
+                        // Auto-update countsTowardAllowance based on source
+                        countsTowardAllowance = (newValue == .bank)
+                    }
+
+                    Toggle("Counts toward daily allowance", isOn: $countsTowardAllowance)
 
                     Toggle("From Savings (conceptually)", isOn: $fromSavingsConcept)
                 }
@@ -95,7 +103,8 @@ struct AddExpenseSheet: View {
             description: description.isEmpty ? "Expense" : description,
             date: date,
             source: source,
-            fromSavingsConcept: fromSavingsConcept
+            fromSavingsConcept: fromSavingsConcept,
+            countsTowardAllowance: countsTowardAllowance
         )
         financeStore.state = state
         dismiss()

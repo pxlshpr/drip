@@ -37,6 +37,18 @@ struct DailyLogItem: Codable, Equatable, Identifiable {
     var description: String
     var amount: Decimal
     var source: String
+    var countsTowardAllowance: Bool
+
+    // Custom decoding to handle backward compatibility
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        description = try container.decode(String.self, forKey: .description)
+        amount = try container.decode(Decimal.self, forKey: .amount)
+        source = try container.decode(String.self, forKey: .source)
+        // If countsTowardAllowance is missing (old data), default based on source
+        countsTowardAllowance = try container.decodeIfPresent(Bool.self, forKey: .countsTowardAllowance) ?? (source == "Bank")
+    }
 }
 
 struct DailyLogEntry: Codable, Equatable, Identifiable {

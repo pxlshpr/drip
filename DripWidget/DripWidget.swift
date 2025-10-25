@@ -62,7 +62,7 @@ struct Provider: TimelineProvider {
             return state.dailyAllowance
         }
 
-        let spentToday = todayLog.items.filter { $0.source == "bank" }.reduce(Decimal(0)) { $0 + $1.amount }
+        let spentToday = todayLog.items.filter { $0.countsTowardAllowance }.reduce(Decimal(0)) { $0 + $1.amount }
         return state.dailyAllowance - spentToday
     }
 }

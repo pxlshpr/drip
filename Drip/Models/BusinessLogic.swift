@@ -286,20 +286,8 @@ class FinanceEngine {
             state.dailyLogs.append(newLog)
         }
 
-        // Compare spent today against allowance (only if from Bank and same day as today)
-        if calendar.isDateInToday(date) {
-            if let todayLogIndex = state.dailyLogs.firstIndex(where: { calendar.isDateInToday($0.date) }) {
-                let todayLog = state.dailyLogs[todayLogIndex]
-                let spentToday = todayLog.items.filter { $0.source == .bank }.reduce(Decimal(0)) { $0 + $1.amount }
-                let diff = state.dailyAllowance - spentToday
-                state.dailyLogs[todayLogIndex].allowanceDiff = diff
-
-                // Adjust mainSavings based on over/under spending
-                // If spent < allowance: leftover increases savings
-                // If spent > allowance: overspend reduces savings
-                // (This is conceptual adjustment, recalculate will handle actual balance)
-            }
-        }
+        // Recalculate allowance diff for this day
+        recalculateAllowanceDiff(state: &state, forDate: date)
 
         // If marked as from savings conceptually, deduct from mainSavings additionally
         if fromSavingsConcept {
@@ -512,5 +500,254 @@ class FinanceEngine {
 
         let spentToday = todayLog.items.filter { $0.source == .bank }.reduce(Decimal(0)) { $0 + $1.amount }
         return state.dailyAllowance - spentToday
+    }
+
+    // MARK: - Recalculate Allowance Diff
+
+    static func recalculateAllowanceDiff(state: inout FinancialState, forDate date: Date) {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+
+        guard let logIndex = state.dailyLogs.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: startOfDay) }) else {
+            return
+        }
+
+        let log = state.dailyLogs[logIndex]
+        let spentFromBank = log.items.filter { $0.source == .bank }.reduce(Decimal(0)) { $0 + $1.amount }
+        let diff = state.dailyAllowance - spentFromBank
+        state.dailyLogs[logIndex].allowanceDiff = diff
+    }
+
+    // MARK: - Delete Expense
+
+    static func deleteExpense(
+        state: inout FinancialState,
+        logDate: Date,
+        itemId: UUID
+    ) {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: logDate)
+
+        guard let logIndex = state.dailyLogs.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: startOfDay) }),
+              let itemIndex = state.dailyLogs[logIndex].items.firstIndex(where: { $0.id == itemId }) else {
+            return
+        }
+
+        let item = state.dailyLogs[logIndex].items[itemIndex]
+
+        // Refund to account
+        switch item.source {
+        case .bank:
+            state.bank += item.amount
+        case .cash:
+            state.cashReserve += item.amount
+        case .savingsConcept:
+            state.bank += item.amount
+        }
+
+        // Remove item from log
+        state.dailyLogs[logIndex].items.remove(at: itemIndex)
+
+        // If no items left in this day, remove the entire log entry
+        if state.dailyLogs[logIndex].items.isEmpty {
+            state.dailyLogs.remove(at: logIndex)
+        } else {
+            // Recalculate allowance diff for this day
+            recalculateAllowanceDiff(state: &state, forDate: logDate)
+        }
+
+        // Recalculate buckets
+        recalculateBuckets(state: &state, referenceDate: logDate)
+    }
+
+    // MARK: - Edit Expense
+
+    static func editExpense(
+        state: inout FinancialState,
+        logDate: Date,
+        itemId: UUID,
+        newAmount: Decimal,
+        newDescription: String,
+        newSource: ExpenseSource
+    ) {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: logDate)
+
+        guard let logIndex = state.dailyLogs.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: startOfDay) }),
+              let itemIndex = state.dailyLogs[logIndex].items.firstIndex(where: { $0.id == itemId }) else {
+            return
+        }
+
+        let oldItem = state.dailyLogs[logIndex].items[itemIndex]
+
+        // Refund old amount
+        switch oldItem.source {
+        case .bank:
+            state.bank += oldItem.amount
+        case .cash:
+            state.cashReserve += oldItem.amount
+        case .savingsConcept:
+            state.bank += oldItem.amount
+        }
+
+        // Deduct new amount
+        switch newSource {
+        case .bank:
+            state.bank -= newAmount
+        case .cash:
+            state.cashReserve -= newAmount
+        case .savingsConcept:
+            state.bank -= newAmount
+        }
+
+        // Update item
+        state.dailyLogs[logIndex].items[itemIndex].amount = newAmount
+        state.dailyLogs[logIndex].items[itemIndex].description = newDescription
+        state.dailyLogs[logIndex].items[itemIndex].source = newSource
+
+        // Recalculate allowance diff for this day
+        recalculateAllowanceDiff(state: &state, forDate: logDate)
+
+        // Recalculate buckets
+        recalculateBuckets(state: &state, referenceDate: logDate)
+    }
+
+    // MARK: - Delete Cash Reserve Log
+
+    static func deleteCashReserveLog(state: inout FinancialState, logId: UUID) {
+        guard let logIndex = state.cashReserveLogs.firstIndex(where: { $0.id == logId }) else {
+            return
+        }
+
+        let log = state.cashReserveLogs[logIndex]
+
+        // Reverse the transaction
+        switch log.type {
+        case .withdraw:
+            // Was: bank -= amount, cashReserve += amount
+            // Reverse: bank += amount, cashReserve -= amount
+            state.bank += log.amount
+            state.cashReserve -= log.amount
+        case .deposit:
+            // Was: cashReserve -= amount, bank += amount
+            // Reverse: cashReserve += amount, bank -= amount
+            state.cashReserve += log.amount
+            state.bank -= log.amount
+        }
+
+        // Remove log
+        state.cashReserveLogs.remove(at: logIndex)
+
+        // No bucket recalc needed, total funds unchanged
+    }
+
+    // MARK: - Edit Cash Reserve Log
+
+    static func editCashReserveLog(
+        state: inout FinancialState,
+        logId: UUID,
+        newAmount: Decimal,
+        newDescription: String,
+        newType: CashReserveLogType
+    ) {
+        guard let logIndex = state.cashReserveLogs.firstIndex(where: { $0.id == logId }) else {
+            return
+        }
+
+        let oldLog = state.cashReserveLogs[logIndex]
+
+        // Reverse old transaction
+        switch oldLog.type {
+        case .withdraw:
+            state.bank += oldLog.amount
+            state.cashReserve -= oldLog.amount
+        case .deposit:
+            state.cashReserve += oldLog.amount
+            state.bank -= oldLog.amount
+        }
+
+        // Apply new transaction
+        switch newType {
+        case .withdraw:
+            state.bank -= newAmount
+            state.cashReserve += newAmount
+        case .deposit:
+            state.cashReserve -= newAmount
+            state.bank += newAmount
+        }
+
+        // Update log
+        state.cashReserveLogs[logIndex].amount = newAmount
+        state.cashReserveLogs[logIndex].description = newDescription
+        state.cashReserveLogs[logIndex].type = newType
+
+        // No bucket recalc needed, total funds unchanged
+    }
+
+    // MARK: - Delete Adjustment Log
+
+    static func deleteAdjustmentLog(state: inout FinancialState, logId: UUID) {
+        guard let logIndex = state.adjustmentLogs.firstIndex(where: { $0.id == logId }) else {
+            return
+        }
+
+        let log = state.adjustmentLogs[logIndex]
+
+        // Reverse the adjustment
+        if log.toAccount == "Bank" {
+            state.bank -= log.amount
+        } else if log.toAccount == "Cash" {
+            state.cashReserve -= log.amount
+        } else if log.toAccount == "MainSavings" {
+            state.mainSavings -= log.amount
+        }
+
+        // Remove log
+        state.adjustmentLogs.remove(at: logIndex)
+
+        // Recalculate buckets
+        recalculateBuckets(state: &state)
+    }
+
+    // MARK: - Edit Adjustment Log
+
+    static func editAdjustmentLog(
+        state: inout FinancialState,
+        logId: UUID,
+        newAmount: Decimal,
+        newDescription: String,
+        newToAccount: String
+    ) {
+        guard let logIndex = state.adjustmentLogs.firstIndex(where: { $0.id == logId }) else {
+            return
+        }
+
+        let oldLog = state.adjustmentLogs[logIndex]
+
+        // Reverse old adjustment
+        if oldLog.toAccount == "Bank" {
+            state.bank -= oldLog.amount
+        } else if oldLog.toAccount == "Cash" {
+            state.cashReserve -= oldLog.amount
+        } else if oldLog.toAccount == "MainSavings" {
+            state.mainSavings -= oldLog.amount
+        }
+
+        // Apply new adjustment
+        if newToAccount == "Bank" {
+            state.bank += newAmount
+        } else if newToAccount == "Cash" {
+            state.cashReserve += newAmount
+        } else if newToAccount == "MainSavings" {
+            state.mainSavings += newAmount
+        }
+
+        // Update log
+        state.adjustmentLogs[logIndex].amount = newAmount
+        state.adjustmentLogs[logIndex].description = newDescription
+        state.adjustmentLogs[logIndex].toAccount = newToAccount
+
+        // Recalculate buckets
+        recalculateBuckets(state: &state)
     }
 }

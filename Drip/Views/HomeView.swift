@@ -130,7 +130,7 @@ struct HomeView: View {
                 BucketsEditorSheet(financeStore: financeStore)
             }
             .sheet(isPresented: $showLogs) {
-                LogsSheet(state: financeStore.state)
+                LogsSheet(financeStore: financeStore)
             }
             .sheet(isPresented: $showSettings) {
                 SettingsSheet(financeStore: financeStore)

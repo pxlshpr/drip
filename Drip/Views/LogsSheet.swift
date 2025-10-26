@@ -64,8 +64,7 @@ struct DailyLogView: View {
 
     @State private var itemToDelete: (logDate: Date, itemId: UUID)?
     @State private var showDeleteConfirmation = false
-    @State private var itemToEdit: (log: DailyLogEntry, item: DailyLogItem)?
-    @State private var showEditSheet = false
+    @State private var itemToEdit: EditableDailyLogItem?
 
     var body: some View {
         List {
@@ -102,8 +101,7 @@ struct DailyLogView: View {
                             }
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                itemToEdit = (log, item)
-                                showEditSheet = true
+                                itemToEdit = EditableDailyLogItem(log: log, item: item)
                             }
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
@@ -143,14 +141,12 @@ struct DailyLogView: View {
                 itemToDelete = nil
             }
         }
-        .sheet(isPresented: $showEditSheet) {
-            if let editData = itemToEdit {
-                EditDailyLogItemSheet(
-                    financeStore: financeStore,
-                    log: editData.log,
-                    item: editData.item
-                )
-            }
+        .sheet(item: $itemToEdit) { editData in
+            EditDailyLogItemSheet(
+                financeStore: financeStore,
+                log: editData.log,
+                item: editData.item
+            )
         }
     }
 }
@@ -167,7 +163,6 @@ struct CashReserveLogView: View {
     @State private var logToDelete: UUID?
     @State private var showDeleteConfirmation = false
     @State private var logToEdit: CashReserveLogEntry?
-    @State private var showEditSheet = false
 
     var body: some View {
         List {
@@ -198,7 +193,6 @@ struct CashReserveLogView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         logToEdit = log
-                        showEditSheet = true
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
@@ -224,10 +218,8 @@ struct CashReserveLogView: View {
                 logToDelete = nil
             }
         }
-        .sheet(isPresented: $showEditSheet) {
-            if let log = logToEdit {
-                EditCashReserveLogSheet(financeStore: financeStore, log: log)
-            }
+        .sheet(item: $logToEdit) { log in
+            EditCashReserveLogSheet(financeStore: financeStore, log: log)
         }
     }
 }
@@ -244,7 +236,6 @@ struct AdjustmentLogView: View {
     @State private var logToDelete: UUID?
     @State private var showDeleteConfirmation = false
     @State private var logToEdit: AdjustmentLogEntry?
-    @State private var showEditSheet = false
 
     var body: some View {
         List {
@@ -275,7 +266,6 @@ struct AdjustmentLogView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         logToEdit = log
-                        showEditSheet = true
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
@@ -301,10 +291,8 @@ struct AdjustmentLogView: View {
                 logToDelete = nil
             }
         }
-        .sheet(isPresented: $showEditSheet) {
-            if let log = logToEdit {
-                EditAdjustmentLogSheet(financeStore: financeStore, log: log)
-            }
+        .sheet(item: $logToEdit) { log in
+            EditAdjustmentLogSheet(financeStore: financeStore, log: log)
         }
     }
 }
@@ -535,6 +523,14 @@ struct EditAdjustmentLogSheet: View {
             .presentationDragIndicator(.visible)
         }
     }
+}
+
+// MARK: - Editable Daily Log Item
+
+struct EditableDailyLogItem: Identifiable {
+    let id = UUID()
+    let log: DailyLogEntry
+    let item: DailyLogItem
 }
 
 // MARK: - Decimal Extension for String Conversion

@@ -7,33 +7,82 @@
 
 import SwiftUI
 
+enum CorrectionInputMode: String, CaseIterable {
+    case trueBalance = "True Balance"
+    case correctionAmount = "Correction Amount"
+}
+
 struct CorrectionsSheet: View {
     @Environment(\.dismiss) private var dismiss
     let financeStore: FinanceStore
 
+    @State private var inputMode: CorrectionInputMode = .trueBalance
     @State private var amount: String = ""
     @State private var description: String = ""
     @State private var toAccount: String = "Bank"
     @State private var date: Date = Date()
 
+    var currentBalance: Decimal {
+        toAccount == "Bank" ? financeStore.state.bank : financeStore.state.cashReserve
+    }
+
     var parsedAmount: Decimal {
         Decimal(string: amount) ?? 0
+    }
+
+    var calculatedCorrection: Decimal {
+        if inputMode == .trueBalance {
+            return parsedAmount - currentBalance
+        } else {
+            return parsedAmount
+        }
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Correction Details") {
-                    TextField("Amount (use +/- for signed delta)", text: $amount)
-                        .keyboardType(.decimalPad)
+                    Picker("Input Mode", selection: $inputMode) {
+                        ForEach(CorrectionInputMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
 
-                    TextField("Reason", text: $description)
-
-                    Picker("To Account", selection: $toAccount) {
+                    Picker("Account", selection: $toAccount) {
                         Text("🏦 Bank").tag("Bank")
                         Text("💵 Cash").tag("Cash")
                     }
                     .pickerStyle(.segmented)
+
+                    if inputMode == .trueBalance {
+                        HStack {
+                            Text("Current Balance")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(currentBalance.formattedCurrency())
+                                .fontWeight(.medium)
+                        }
+
+                        TextField("True Balance", text: $amount)
+                            .keyboardType(.decimalPad)
+                    } else {
+                        TextField("Correction Amount (use +/- for signed)", text: $amount)
+                            .keyboardType(.decimalPad)
+                    }
+
+                    if inputMode == .trueBalance && parsedAmount != 0 {
+                        HStack {
+                            Text("Required Correction")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(calculatedCorrection.formattedCurrency())
+                                .fontWeight(.medium)
+                                .foregroundStyle(calculatedCorrection >= 0 ? .green : .red)
+                        }
+                    }
+
+                    TextField("Reason", text: $description)
 
                     DatePicker("Date", selection: $date, displayedComponents: .date)
                 }
@@ -70,7 +119,7 @@ struct CorrectionsSheet: View {
                     Button("Apply") {
                         applyCorrection()
                     }
-                    .disabled(parsedAmount == 0 || description.isEmpty)
+                    .disabled(amount.isEmpty || description.isEmpty || calculatedCorrection == 0)
                 }
             }
         }
@@ -80,7 +129,7 @@ struct CorrectionsSheet: View {
         var state = financeStore.state
         FinanceEngine.applyCorrection(
             state: &state,
-            amount: parsedAmount,
+            amount: calculatedCorrection,
             description: description,
             toAccount: toAccount,
             date: date

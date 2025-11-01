@@ -309,6 +309,11 @@ struct EditDailyLogItemSheet: View {
     @State private var amount: String
     @State private var source: ExpenseSource
     @State private var countsTowardAllowance: Bool
+    @FocusState private var focusedField: EditableExpenseField?
+
+    enum EditableExpenseField {
+        case description, amount
+    }
 
     init(financeStore: FinanceStore, log: DailyLogEntry, item: DailyLogItem) {
         self.financeStore = financeStore
@@ -324,13 +329,36 @@ struct EditDailyLogItemSheet: View {
         NavigationStack {
             Form {
                 Section("Details") {
-                    TextField("Description", text: $description)
-                    TextField("Amount", text: $amount)
-                        .keyboardType(.decimalPad)
-                    Picker("Source", selection: $source) {
-                        Text("Bank").tag(ExpenseSource.bank)
-                        Text("Cash").tag(ExpenseSource.cash)
-                        Text("Savings Concept").tag(ExpenseSource.savingsConcept)
+                    HStack {
+                        Text("Name")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        TextField("", text: $description)
+                            .multilineTextAlignment(.trailing)
+                            .focused($focusedField, equals: .description)
+                    }
+
+                    HStack {
+                        Text("Amount")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        TextField("", text: $amount)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .focused($focusedField, equals: .amount)
+                    }
+
+                    HStack {
+                        Text("Source")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Picker("", selection: $source) {
+                            Text("Bank").tag(ExpenseSource.bank)
+                            Text("Cash").tag(ExpenseSource.cash)
+                            Text("Savings Concept").tag(ExpenseSource.savingsConcept)
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
                     }
                     Toggle("Counts toward daily allowance", isOn: $countsTowardAllowance)
                 }
@@ -370,6 +398,13 @@ struct EditDailyLogItemSheet: View {
                         dismiss()
                     }
                     .disabled(description.isEmpty || amount.isEmpty)
+                }
+                ToolbarItem(placement: .keyboard) {
+                    Button {
+                        focusedField = nil
+                    } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                    }
                 }
             }
             .presentationDetents([.medium, .large])

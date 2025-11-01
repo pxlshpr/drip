@@ -18,6 +18,7 @@ struct CorrectionsSheet: View {
 
     @State private var inputMode: CorrectionInputMode = .trueBalance
     @State private var amount: String = ""
+    @State private var isNegative: Bool = false
     @State private var description: String = ""
     @State private var toAccount: String = "Bank"
     @State private var date: Date = Date()
@@ -27,7 +28,22 @@ struct CorrectionsSheet: View {
     }
 
     var parsedAmount: Decimal {
-        Decimal(string: amount) ?? 0
+        let value = Decimal(string: amount) ?? 0
+        return isNegative ? -value : value
+    }
+
+    var displayAmount: Binding<String> {
+        Binding(
+            get: {
+                if isNegative && !amount.isEmpty {
+                    return "-" + amount
+                }
+                return amount
+            },
+            set: { newValue in
+                amount = newValue.replacingOccurrences(of: "-", with: "")
+            }
+        )
     }
 
     var calculatedCorrection: Decimal {
@@ -55,20 +71,39 @@ struct CorrectionsSheet: View {
                     }
                     .pickerStyle(.segmented)
 
-                    if inputMode == .trueBalance {
-                        HStack {
-                            Text("Current Balance")
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text(currentBalance.formattedCurrency())
-                                .fontWeight(.medium)
-                        }
+                    HStack {
+                        Text("Current Balance")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(currentBalance.formattedCurrency())
+                            .fontWeight(.medium)
+                    }
 
-                        TextField("True Balance", text: $amount)
+                    HStack {
+                        Text(inputMode == .trueBalance ? "True Balance" : "Correction Amount")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+
+                        TextField("", text: displayAmount)
                             .keyboardType(.decimalPad)
-                    } else {
-                        TextField("Correction Amount (use +/- for signed)", text: $amount)
-                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 150)
+                            .toolbar {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    Button {
+                                        isNegative.toggle()
+                                    } label: {
+                                        Image(systemName: "plus.forwardslash.minus")
+                                            .foregroundStyle(isNegative ? .red : .green)
+                                    }
+
+                                    Spacer()
+
+                                    Button("Done") {
+                                        hideKeyboard()
+                                    }
+                                }
+                            }
                     }
 
                     if inputMode == .trueBalance && parsedAmount != 0 {
@@ -143,5 +178,9 @@ struct CorrectionsSheet: View {
         FinanceEngine.autoFixReconciliation(state: &state, description: "Auto-reconciliation", date: date)
         financeStore.state = state
         dismiss()
+    }
+
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
